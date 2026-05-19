@@ -35,11 +35,23 @@ export const Route = createFileRoute("/buildings/$slug")({
 function BuildingPage() {
   const { slug } = Route.useParams();
   const building = useBuilding(slug);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const [lightbox, setLightbox] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
 
   if (!building) {
-    // SSR may not find it (no localStorage), still render shell to allow client to populate
-    throw notFound();
+    if (!hydrated) {
+      return <div className="min-h-screen bg-background"><Header /><div className="mx-auto max-w-7xl px-4 py-20 text-muted-foreground">Loading…</div></div>;
+    }
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="mx-auto max-w-7xl px-4 py-20 text-center">
+          <h1 className="font-serif text-3xl text-primary">Building not found</h1>
+          <Link to="/" className="mt-4 inline-block text-sm text-primary underline">Back to home</Link>
+        </div>
+      </div>
+    );
   }
 
   const gallery = building.gallery ?? [];
