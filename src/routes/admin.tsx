@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Lock, Plus, Trash2, Upload, X, LogOut, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import { Lock, Plus, Trash2, Upload, X, LogOut, RotateCcw, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { Header } from "@/components/Header";
 import { getBuildings, saveBuildings, resetToSeed, useBuildings } from "@/lib/listings-store";
 import type { Building, Unit, UnitStatus } from "@/data/listings";
@@ -78,10 +78,15 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+type BuildingModalState = { mode: "add" } | { mode: "edit"; slug: string };
+type UnitModalState =
+  | { mode: "add"; slug: string }
+  | { mode: "edit"; slug: string; unitId: string };
+
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const buildings = useBuildings();
-  const [showAddBuilding, setShowAddBuilding] = useState(false);
-  const [addingUnitTo, setAddingUnitTo] = useState<string | null>(null);
+  const [buildingModal, setBuildingModal] = useState<BuildingModalState | null>(null);
+  const [unitModal, setUnitModal] = useState<UnitModalState | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   function persist(next: Building[]) { saveBuildings(next); }
@@ -105,15 +110,36 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     persist(buildings.filter((b) => b.slug !== slug));
   }
 
-  function addUnit(slug: string, unit: Unit) {
-    persist(buildings.map((b) => b.slug !== slug ? b : { ...b, units: [...b.units, unit] }));
-    setAddingUnitTo(null);
+  function saveUnit(slug: string, unit: Unit, originalId?: string) {
+    const target = originalId ?? unit.id;
+    persist(buildings.map((b) => {
+      if (b.slug !== slug) return b;
+      const exists = b.units.some((u) => u.id === target);
+      const units = exists
+        ? b.units.map((u) => u.id === target ? unit : u)
+        : [...b.units, unit];
+      return { ...b, units };
+    }));
+    setUnitModal(null);
   }
 
-  function addBuilding(b: Building) {
-    persist([...buildings, b]);
-    setShowAddBuilding(false);
+  function saveBuilding(b: Building, originalSlug?: string) {
+    const target = originalSlug ?? b.slug;
+    const exists = buildings.some((x) => x.slug === target);
+    if (exists) {
+      persist(buildings.map((x) => x.slug === target ? { ...x, ...b, units: x.units } : x));
+    } else {
+      persist([...buildings, b]);
+    }
+    setBuildingModal(null);
   }
+
+  const editingBuilding = buildingModal?.mode === "edit"
+    ? buildings.find((b) => b.slug === buildingModal.slug)
+    : undefined;
+  const editingUnit = unitModal?.mode === "edit"
+    ? buildings.find((b) => b.slug === unitModal.slug)?.units.find((u) => u.id === unitModal.unitId)
+    : undefined;
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -125,7 +151,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <p className="text-sm text-muted-foreground">Manage buildings and unit listings</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowAddBuilding(true)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">
+            <button onClick={() => setBuildingModal({ mode: "add" })} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">
               <Plus className="h-4 w-4" /> Add Building
             </button>
             <button onClick={() => { if (confirm("Reset to seed? All admin changes lost.")) resetToSeed(); }} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-accent">
@@ -154,8 +180,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                       <p className="text-xs text-muted-foreground">{b.location} · {b.units.length} units</p>
                     </div>
                   </button>
-                  <div className="flex gap-2">
-                    <button onClick={() => setAddingUnitTo(b.slug)} className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-navy-deep">
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setBuildingModal({ mode: "edit", slug: b.slug })} className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-accent">
+                      <Pencil className="h-3.5 w-3.5" /> Edit Building
+                    </button>
+                    <button onClick={() => setUnitModal({ mode: "add", slug: b.slug })} className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-navy-deep">
                       <Plus className="h-3.5 w-3.5" /> Add Unit
                     </button>
                     <button onClick={() => deleteBuilding(b.slug)} className="rounded-md border border-destructive/30 p-1.5 text-destructive hover:bg-destructive/10">
@@ -194,9 +223,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                             </td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">{u.images?.length ?? 0} img</td>
                             <td className="px-4 py-3 text-right">
-                              <button onClick={() => deleteUnit(b.slug, u.id)} className="rounded p-1.5 text-destructive hover:bg-destructive/10">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex justify-end gap-1">
+                                <button onClick={() => setUnitModal({ mode: "edit", slug: b.slug, unitId: u.id })} className="rounded p-1.5 text-primary hover:bg-primary/10" title="Edit">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button onClick={() => deleteUnit(b.slug, u.id)} className="rounded p-1.5 text-destructive hover:bg-destructive/10" title="Delete">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -213,8 +247,20 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </div>
 
-      {showAddBuilding && <AddBuildingModal onClose={() => setShowAddBuilding(false)} onSave={addBuilding} />}
-      {addingUnitTo && <AddUnitModal onClose={() => setAddingUnitTo(null)} onSave={(u) => addUnit(addingUnitTo, u)} />}
+      {buildingModal && (
+        <BuildingModal
+          initial={editingBuilding}
+          onClose={() => setBuildingModal(null)}
+          onSave={(b) => saveBuilding(b, buildingModal.mode === "edit" ? buildingModal.slug : undefined)}
+        />
+      )}
+      {unitModal && (
+        <UnitModal
+          initial={editingUnit}
+          onClose={() => setUnitModal(null)}
+          onSave={(u) => saveUnit(unitModal.slug, u, unitModal.mode === "edit" ? unitModal.unitId : undefined)}
+        />
+      )}
     </div>
   );
 }
@@ -244,11 +290,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 
-function AddBuildingModal({ onClose, onSave }: { onClose: () => void; onSave: (b: Building) => void }) {
+function BuildingModal({ initial, onClose, onSave }: { initial?: Building; onClose: () => void; onSave: (b: Building) => void }) {
   const [form, setForm] = useState({
-    name: "", slug: "", location: "", metro: "", contact_name: "", contact_phone: "",
+    name: initial?.name ?? "",
+    slug: initial?.slug ?? "",
+    location: initial?.location ?? "",
+    metro: initial?.metro ?? "",
+    contact_name: initial?.contact_name ?? "",
+    contact_phone: initial?.contact_phone ?? "",
   });
-  const [heroImage, setHeroImage] = useState<string | undefined>();
+  const [heroImage, setHeroImage] = useState<string | undefined>(initial?.heroImage);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
 
   async function handleHero(e: React.ChangeEvent<HTMLInputElement>) {
@@ -257,12 +308,12 @@ function AddBuildingModal({ onClose, onSave }: { onClose: () => void; onSave: (b
   }
 
   return (
-    <Modal title="Add Building" onClose={onClose}>
+    <Modal title={initial ? "Edit Building" : "Add Building"} onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           const slug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-          onSave({ ...form, slug, units: [], heroImage });
+          onSave({ ...form, slug, units: initial?.units ?? [], heroImage });
         }}
         className="space-y-4"
       >
@@ -278,39 +329,60 @@ function AddBuildingModal({ onClose, onSave }: { onClose: () => void; onSave: (b
         </div>
         <Field label="Hero Photo">
           <input type="file" accept="image/*" onChange={handleHero} className="text-sm" />
-          {heroImage && <img src={heroImage} alt="" className="mt-2 h-32 rounded-md object-cover" />}
+          {heroImage && (
+            <div className="relative mt-2 inline-block">
+              <img src={heroImage} alt="" className="h-32 rounded-md object-cover" />
+              <button type="button" onClick={() => setHeroImage(undefined)} className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
         </Field>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm">Cancel</button>
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">Save Building</button>
+          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">{initial ? "Save Changes" : "Save Building"}</button>
         </div>
       </form>
     </Modal>
   );
 }
 
-function AddUnitModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Unit) => void }) {
-  const [form, setForm] = useState({ name: "", area: "", seats: "", rent: "", bcm: "" });
-  const [status, setStatus] = useState<UnitStatus>("available");
-  const [specs, setSpecs] = useState<{ k: string; v: string }[]>([{ k: "", v: "" }]);
-  const [images, setImages] = useState<string[]>([]);
+function UnitModal({ initial, onClose, onSave }: { initial?: Unit; onClose: () => void; onSave: (u: Unit) => void }) {
+  const [form, setForm] = useState({
+    name: initial?.name ?? "",
+    area: initial ? String(initial.area) : "",
+    seats: initial ? String(initial.seats) : "",
+    rent: initial ? String(initial.rent) : "",
+    bcm: initial ? String(initial.bcm) : "",
+  });
+  const [status, setStatus] = useState<UnitStatus>(initial?.status ?? "available");
+  const initialSpecs = initial ? Object.entries(initial.specs).map(([k, v]) => ({ k, v })) : [{ k: "", v: "" }];
+  const [specs, setSpecs] = useState<{ k: string; v: string }[]>(initialSpecs.length ? initialSpecs : [{ k: "", v: "" }]);
+  const [images, setImages] = useState<string[]>(initial?.images ?? []);
+  const [floorPlan, setFloorPlan] = useState<string | undefined>(initial?.floorPlan);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
 
   async function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     const b64 = await Promise.all(files.map(fileToBase64));
     setImages([...images, ...b64]);
+    e.target.value = "";
+  }
+
+  async function handleFloorPlan(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) setFloorPlan(await fileToBase64(f));
   }
 
   return (
-    <Modal title="Add Unit" onClose={onClose}>
+    <Modal title={initial ? "Edit Unit" : "Add Unit"} onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           const specsObj: Record<string, string> = {};
           for (const { k, v } of specs) if (k.trim()) specsObj[k.trim()] = v;
           onSave({
-            id: `unit-${Date.now()}`,
+            id: initial?.id ?? `unit-${Date.now()}`,
             name: form.name,
             area: Number(form.area) || 0,
             seats: Number(form.seats) || 0,
@@ -319,6 +391,7 @@ function AddUnitModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Un
             specs: specsObj,
             status,
             images,
+            floorPlan,
           });
         }}
         className="space-y-4"
@@ -353,7 +426,7 @@ function AddUnitModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Un
             </button>
           </div>
         </div>
-        <Field label="Photos (multiple)">
+        <Field label="Photos (multiple — carousel order = upload order)">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-muted/50 px-4 py-3 text-sm hover:bg-muted">
             <Upload className="h-4 w-4" /> Upload images
             <input type="file" accept="image/*" multiple onChange={handleImages} className="hidden" />
@@ -361,8 +434,9 @@ function AddUnitModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Un
           {images.length > 0 && (
             <div className="mt-3 grid grid-cols-4 gap-2">
               {images.map((src, i) => (
-                <div key={i} className="relative aspect-square overflow-hidden rounded-md">
+                <div key={i} className="relative aspect-square overflow-hidden rounded-md border border-border">
                   <img src={src} alt="" className="h-full w-full object-cover" />
+                  <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">{i + 1}</span>
                   <button type="button" onClick={() => setImages(images.filter((_, j) => j !== i))} className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white">
                     <X className="h-3 w-3" />
                   </button>
@@ -371,9 +445,20 @@ function AddUnitModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Un
             </div>
           )}
         </Field>
+        <Field label="Floor Plan (single image)">
+          <input type="file" accept="image/*" onChange={handleFloorPlan} className="text-sm" />
+          {floorPlan && (
+            <div className="relative mt-2 inline-block">
+              <img src={floorPlan} alt="" className="h-32 rounded-md border border-border object-contain" />
+              <button type="button" onClick={() => setFloorPlan(undefined)} className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </Field>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm">Cancel</button>
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">Save Unit</button>
+          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">{initial ? "Save Changes" : "Save Unit"}</button>
         </div>
       </form>
     </Modal>
