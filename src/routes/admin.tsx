@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Lock, Plus, Trash2, Upload, X, LogOut, RotateCcw, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { Header } from "@/components/Header";
-import { getBuildings, saveBuildings, resetToSeed, useBuildings } from "@/lib/listings-store";
+import { saveBuildings, resetToSeed, useBuildings } from "@/lib/listings-store";
 import type { Building, Unit, UnitStatus } from "@/data/listings";
 
 export const Route = createFileRoute("/admin")({
