@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Malve Businesses" },
+      { name: "description", content: "Premium Plug and Play Offices" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Malve Businesses" },
+      { property: "og:description", content: "Premium Plug and Play Offices" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Malve Businesses" },
+      { name: "twitter:description", content: "Premium Plug and Play Offices" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/cc21602f-af5d-4416-9cd3-00dd8f1677c8/id-preview-86af8f6c--faec8645-dba4-4cef-bd31-50090f8fdf17.lovable.app-1779256108203.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/cc21602f-af5d-4416-9cd3-00dd8f1677c8/id-preview-86af8f6c--faec8645-dba4-4cef-bd31-50090f8fdf17.lovable.app-1779256108203.png" },
     ],
     links: [
       {
