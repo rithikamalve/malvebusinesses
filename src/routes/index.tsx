@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, MessageCircle, ShieldCheck, Train, Zap, Receipt, Sofa, Phone } from "lucide-react";
-import heroImage from "@/assets/hero-office.jpg";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { BuildingCard } from "@/components/BuildingCard";
@@ -33,9 +32,16 @@ function HomePage() {
       <Header />
 
       {/* Hero */}
-      <section className="relative isolate overflow-hidden">
-        <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover" width={1600} height={1024} />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy-deep/95 via-primary/85 to-primary/60" />
+      <section className="relative isolate overflow-hidden bg-primary">
+        <div className="absolute inset-0 bg-gradient-to-br from-navy-deep via-primary to-primary/80" />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
         <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:py-40">
           <div className="max-w-3xl text-white fade-up">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70">For Lease · Hyderabad</p>
