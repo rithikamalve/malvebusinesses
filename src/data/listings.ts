@@ -34,6 +34,7 @@ export const SEED_BUILDINGS: Building[] = [
   {
     slug: "vandana-nivas",
     name: "Vandana Nivas",
+    heroImage: "/listings/vn-500/01.jpg",
     location: "West Marredpally, Secunderabad, Telangana",
     metro: "Parade Grounds Metro Station",
     contact_name: "Ashok",
@@ -149,6 +150,7 @@ export const SEED_BUILDINGS: Building[] = [
   {
     slug: "gowra-klassic",
     name: "Gowra Klassic",
+    heroImage: "/listings/gk-1500/01.jpg",
     location: "Behind Shoppers Stop, Begumpet, Telangana",
     metro: "Prakash Nagar Metro Station",
     contact_name: "Arun",
@@ -188,6 +190,7 @@ export const SEED_BUILDINGS: Building[] = [
   {
     slug: "prakash-towers",
     name: "Prakash Towers",
+    heroImage: "/listings/pt-1200/01.jpg",
     location: "Begumpet, Hyderabad, Telangana",
     metro: "Prakash Nagar Metro Station",
     contact_name: "Arun",
