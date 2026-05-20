@@ -34,6 +34,7 @@ export const SEED_BUILDINGS: Building[] = [
   {
     slug: "vandana-nivas",
     name: "Vandana Nivas",
+    heroImage: "/listings/vn-500/01.jpg",
     location: "West Marredpally, Secunderabad, Telangana",
     metro: "Parade Grounds Metro Station",
     contact_name: "Ashok",
@@ -62,7 +63,8 @@ export const SEED_BUILDINGS: Building[] = [
           "Security Deposit": "6 months",
           Enhancement: "10% yearly",
           Lease: "5 yrs, 3 yr lock-in",
-        },
+        },,
+        images: ["/listings/vn-500/01.jpg", "/listings/vn-500/02.jpg", "/listings/vn-500/03.jpg", "/listings/vn-500/04.jpg"]
       },
       {
         id: "vn-1200",
@@ -86,7 +88,9 @@ export const SEED_BUILDINGS: Building[] = [
           "Security Deposit": "6 months",
           Enhancement: "6% yearly",
           Lease: "5 yrs, 3 yr lock-in",
-        },
+        },,
+        images: ["/listings/vn-1200/01.jpg", "/listings/vn-1200/02.jpg", "/listings/vn-1200/03.jpg", "/listings/vn-1200/04.jpg", "/listings/vn-1200/05.jpg"],
+        floorPlan: "/listings/vn-1200/06.jpg"
       },
       {
         id: "vn-1650",
@@ -110,7 +114,9 @@ export const SEED_BUILDINGS: Building[] = [
           "Security Deposit": "6 months",
           Enhancement: "6% yearly",
           Lease: "5 yrs, 3 yr lock-in",
-        },
+        },,
+        images: ["/listings/vn-1650/01.jpg", "/listings/vn-1650/02.jpg", "/listings/vn-1650/03.jpg", "/listings/vn-1650/04.jpg", "/listings/vn-1650/05.jpg", "/listings/vn-1650/06.jpg", "/listings/vn-1650/07.jpg", "/listings/vn-1650/08.jpg"],
+        floorPlan: "/listings/vn-1650/09.jpg"
       },
       {
         id: "vn-1800",
@@ -135,13 +141,16 @@ export const SEED_BUILDINGS: Building[] = [
           "Security Deposit": "6 months",
           Enhancement: "6% yearly",
           Lease: "5 yrs, 3 yr lock-in",
-        },
+        },,
+        images: ["/listings/vn-1800/01.jpg", "/listings/vn-1800/02.jpg", "/listings/vn-1800/03.jpg", "/listings/vn-1800/04.jpg", "/listings/vn-1800/05.jpg", "/listings/vn-1800/06.jpg", "/listings/vn-1800/07.jpg", "/listings/vn-1800/08.jpg", "/listings/vn-1800/09.jpg"],
+        floorPlan: "/listings/vn-1800/10.jpg"
       },
     ],
   },
   {
     slug: "gowra-klassic",
     name: "Gowra Klassic",
+    heroImage: "/listings/gk-1500/01.jpg",
     location: "Behind Shoppers Stop, Begumpet, Telangana",
     metro: "Prakash Nagar Metro Station",
     contact_name: "Arun",
@@ -172,13 +181,16 @@ export const SEED_BUILDINGS: Building[] = [
           "Security Deposit": "6 months",
           Enhancement: "6% yearly",
           Lease: "10 yrs, Lock-in 6 yrs",
-        },
+        },,
+        images: ["/listings/gk-1500/01.jpg", "/listings/gk-1500/02.jpg", "/listings/gk-1500/03.jpg", "/listings/gk-1500/04.jpg", "/listings/gk-1500/05.jpg", "/listings/gk-1500/06.jpg", "/listings/gk-1500/07.jpg", "/listings/gk-1500/08.jpg", "/listings/gk-1500/09.jpg", "/listings/gk-1500/10.jpg", "/listings/gk-1500/11.jpg"],
+        floorPlan: "/listings/gk-1500/12.jpg"
       },
     ],
   },
   {
     slug: "prakash-towers",
     name: "Prakash Towers",
+    heroImage: "/listings/pt-1200/01.jpg",
     location: "Begumpet, Hyderabad, Telangana",
     metro: "Prakash Nagar Metro Station",
     contact_name: "Arun",
@@ -207,7 +219,9 @@ export const SEED_BUILDINGS: Building[] = [
           "Security Deposit": "6 months",
           Enhancement: "6% yearly",
           Lease: "5 yrs, 3 yr lock-in",
-        },
+        },,
+        images: ["/listings/pt-1200/01.jpg", "/listings/pt-1200/02.jpg", "/listings/pt-1200/03.jpg", "/listings/pt-1200/04.jpg", "/listings/pt-1200/05.jpg", "/listings/pt-1200/06.jpg"],
+        floorPlan: "/listings/pt-1200/07.jpg"
       },
     ],
   },
