@@ -39,11 +39,17 @@ export function getBuildings(): Building[] {
   return read();
 }
 
-export function saveBuildings(buildings: Building[]) {
-  if (typeof window === "undefined") return;
+export async function saveBuildings(buildings: Building[]) {
+  if (typeof window === "undefined") return { ok: false as const, error: "ssr" };
   window.localStorage.setItem(KEY, JSON.stringify(buildings));
   emit();
+  try {
+    return await writeListingsToDisk({ data: buildings });
+  } catch (err) {
+    return { ok: false as const, error: (err as Error).message };
+  }
 }
+
 
 export function resetToSeed() {
   if (typeof window === "undefined") return;
