@@ -10,7 +10,7 @@ export function Header() {
             HO
           </div>
           <div className="leading-tight">
-            <div className="font-serif text-base font-bold text-primary">Hyderabad Offices</div>
+            <div className="font-serif text-base font-bold text-primary">Malve Businesses</div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Premium Plug &amp; Play</div>
           </div>
         </Link>

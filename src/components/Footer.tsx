@@ -4,7 +4,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
         <div className="grid gap-8 md:grid-cols-3">
           <div>
-            <h3 className="font-serif text-xl font-bold text-white">Hyderabad Offices</h3>
+            <h3 className="font-serif text-xl font-bold text-white">Malve Businesses</h3>
             <p className="mt-3 text-sm text-white/70">
               Premium plug &amp; play office spaces across Hyderabad's prime business locations.
               Fully furnished, metro accessible, move-in ready.
@@ -37,7 +37,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-10 border-t border-white/10 pt-6 text-xs text-white/50 flex justify-between">
-          <span>© {new Date().getFullYear()} Hyderabad Offices. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} Malve Businesses. All rights reserved.</span>
           <a href="/admin" className="hover:text-white/80">Admin</a>
         </div>
       </div>
