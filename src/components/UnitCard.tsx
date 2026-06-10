@@ -25,24 +25,23 @@ export function UnitCard({ unit, building }: { unit: Unit; building: Building })
 
   return (
     <article className="fade-up overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-md">
-      <div className="relative aspect-[4/3] bg-muted">
+      <div className="relative aspect-[4/3] bg-muted cursor-zoom-in" onClick={() => setLightboxOpen(true)}>
         {images.length > 0 ? (
           <>
             <img
               src={images[idx]}
               alt={unit.name}
-              onClick={() => setLightboxOpen(true)}
-              className="h-full w-full cursor-zoom-in object-contain"
+              className="h-full w-full object-contain"
             />
             {images.length > 1 && (
               <>
-                <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60">
+                <button onClick={(e) => { e.stopPropagation(); prev(); }} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60">
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60">
+                <button onClick={(e) => { e.stopPropagation(); next(); }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60">
                   <ChevronRight className="h-4 w-4" />
                 </button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 pointer-events-none">
                   {images.map((_, i) => (
                     <span key={i} className={`h-1.5 w-1.5 rounded-full ${i === idx ? "bg-white" : "bg-white/50"}`} />
                   ))}
@@ -56,7 +55,7 @@ export function UnitCard({ unit, building }: { unit: Unit; building: Building })
           </div>
         )}
         <span
-          className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+          className={`pointer-events-none absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
             isRented ? "bg-muted text-muted-foreground" : "bg-whatsapp text-white"
           }`}
         >
