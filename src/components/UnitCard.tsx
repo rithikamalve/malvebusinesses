@@ -25,14 +25,14 @@ export function UnitCard({ unit, building }: { unit: Unit; building: Building })
 
   return (
     <article className="fade-up overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-md">
-      <div className="relative aspect-[16/10] bg-muted">
+      <div className="relative aspect-[4/3] bg-muted">
         {images.length > 0 ? (
           <>
             <img
               src={images[idx]}
               alt={unit.name}
               onClick={() => setLightboxOpen(true)}
-              className="h-full w-full cursor-zoom-in object-cover"
+              className="h-full w-full cursor-zoom-in object-contain"
             />
             {images.length > 1 && (
               <>

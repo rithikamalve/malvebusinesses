@@ -10,9 +10,9 @@ export function BuildingCard({ building }: { building: Building }) {
       params={{ slug: building.slug }}
       className="fade-up group overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
     >
-      <div className="relative aspect-[16/10] bg-muted">
+      <div className="relative aspect-[4/3] bg-muted">
         {building.heroImage ? (
-          <img src={building.heroImage} alt={building.name} className="h-full w-full object-cover" />
+          <img src={building.heroImage} alt={building.name} className="h-full w-full object-contain" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary to-navy-deep text-white">
             <Building2 className="h-16 w-16 opacity-40" />
