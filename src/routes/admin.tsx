@@ -163,9 +163,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
 
-        <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          Changes are saved in this browser only. To make changes permanent across all devices, update <code className="rounded bg-amber-100 px-1">src/data/listings.ts</code>.
+        <div className="mt-4 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
+          Edits are written to <code className="rounded bg-emerald-100 px-1">src/data/listings.seed.json</code> automatically and mirrored in this browser. In production builds (where the filesystem is read-only) only the browser copy updates.
         </div>
+
 
         <div className="mt-8 space-y-4">
           {buildings.map((b) => {
