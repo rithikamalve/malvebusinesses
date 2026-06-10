@@ -1,5 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { SEED_BUILDINGS, type Building } from "@/data/listings";
+import { writeListingsToDisk } from "./listings.functions";
+
 
 const KEY = "listings_data";
 
@@ -37,11 +39,17 @@ export function getBuildings(): Building[] {
   return read();
 }
 
-export function saveBuildings(buildings: Building[]) {
-  if (typeof window === "undefined") return;
+export async function saveBuildings(buildings: Building[]) {
+  if (typeof window === "undefined") return { ok: false as const, error: "ssr" };
   window.localStorage.setItem(KEY, JSON.stringify(buildings));
   emit();
+  try {
+    return await writeListingsToDisk({ data: buildings });
+  } catch (err) {
+    return { ok: false as const, error: (err as Error).message };
+  }
 }
+
 
 export function resetToSeed() {
   if (typeof window === "undefined") return;
