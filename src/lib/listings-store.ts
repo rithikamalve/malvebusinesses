@@ -1,5 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { SEED_BUILDINGS, type Building } from "@/data/listings";
+import { writeListingsToDisk } from "./listings.functions";
+
 
 const KEY = "listings_data";
 
