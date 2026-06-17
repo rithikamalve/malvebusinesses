@@ -36,7 +36,9 @@
           "/listings/vn-500/01.jpg",
           "/listings/vn-500/02.jpg",
           "/listings/vn-500/03.jpg",
-          "/listings/vn-500/04.jpg"
+          "/listings/vn-500/04.jpg",
+          "/listings/vn-500/05.jpg",
+          "/listings/vn-500/06.jpg"
         ]
       },
       {
@@ -67,9 +69,12 @@
           "/listings/vn-1200/02.jpg",
           "/listings/vn-1200/03.jpg",
           "/listings/vn-1200/04.jpg",
-          "/listings/vn-1200/05.jpg"
+          "/listings/vn-1200/05.jpg",
+          "/listings/vn-1200/06.jpg",
+          "/listings/vn-1200/07.jpg",
+          "/listings/vn-1200/08.jpg"
         ],
-        "floorPlan": "/listings/vn-1200/06.jpg"
+        "floorPlan": "/listings/vn-1200/floor.jpg"
       },
       {
         "id": "vn-1650",
@@ -102,9 +107,15 @@
           "/listings/vn-1650/05.jpg",
           "/listings/vn-1650/06.jpg",
           "/listings/vn-1650/07.jpg",
-          "/listings/vn-1650/08.jpg"
+          "/listings/vn-1650/08.jpg",
+          "/listings/vn-1650/09.jpg",
+          "/listings/vn-1650/10.jpg",
+          "/listings/vn-1650/11.jpg",
+          "/listings/vn-1650/12.jpg",
+          "/listings/vn-1650/13.jpg",
+          "/listings/vn-1650/14.jpg"
         ],
-        "floorPlan": "/listings/vn-1650/09.jpg"
+        "floorPlan": "/listings/vn-1650/floor.jpg"
       },
       {
         "id": "vn-1800",
@@ -139,9 +150,16 @@
           "/listings/vn-1800/06.jpg",
           "/listings/vn-1800/07.jpg",
           "/listings/vn-1800/08.jpg",
-          "/listings/vn-1800/09.jpg"
+          "/listings/vn-1800/09.jpg",
+          "/listings/vn-1800/10.jpg",
+          "/listings/vn-1800/11.jpg",
+          "/listings/vn-1800/12.jpg",
+          "/listings/vn-1800/13.jpg",
+          "/listings/vn-1800/14.jpg",
+          "/listings/vn-1800/15.jpg",
+          "/listings/vn-1800/16.jpg"
         ],
-        "floorPlan": "/listings/vn-1800/10.jpg"
+        "floorPlan": "/listings/vn-1800/floor.jpg"
       }
     ]
   },
@@ -190,10 +208,9 @@
           "/listings/gk-1500/07.jpg",
           "/listings/gk-1500/08.jpg",
           "/listings/gk-1500/09.jpg",
-          "/listings/gk-1500/10.jpg",
-          "/listings/gk-1500/11.jpg"
+          "/listings/gk-1500/10.jpg"
         ],
-        "floorPlan": "/listings/gk-1500/12.jpg"
+        "floorPlan": "/listings/gk-1500/floor.jpg"
       }
     ]
   },
@@ -236,9 +253,13 @@
           "/listings/pt-1200/03.jpg",
           "/listings/pt-1200/04.jpg",
           "/listings/pt-1200/05.jpg",
-          "/listings/pt-1200/06.jpg"
+          "/listings/pt-1200/06.jpg",
+          "/listings/pt-1200/07.jpg",
+          "/listings/pt-1200/08.jpg",
+          "/listings/pt-1200/09.jpg",
+          "/listings/pt-1200/10.jpg"
         ],
-        "floorPlan": "/listings/pt-1200/07.jpg"
+        "floorPlan": "/listings/pt-1200/floor.jpg"
       }
     ]
   }
