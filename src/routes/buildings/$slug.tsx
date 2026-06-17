@@ -115,7 +115,7 @@ function BuildingPage() {
             <p className="mt-3">No units listed yet.</p>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-8">
             {building.units.map((u) => (
               <UnitCard key={u.id} unit={u} building={building} />
             ))}
