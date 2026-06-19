@@ -14,16 +14,152 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      buildings: {
+        Row: {
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          gallery: string[]
+          general_contact_name: string | null
+          general_contact_phone: string | null
+          hero_image: string | null
+          location: string
+          maps: string | null
+          metro: string
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          gallery?: string[]
+          general_contact_name?: string | null
+          general_contact_phone?: string | null
+          hero_image?: string | null
+          location?: string
+          maps?: string | null
+          metro?: string
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          gallery?: string[]
+          general_contact_name?: string | null
+          general_contact_phone?: string | null
+          hero_image?: string | null
+          location?: string
+          maps?: string | null
+          metro?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      units: {
+        Row: {
+          area: number
+          bcm: number
+          building_slug: string
+          created_at: string
+          floor_plan: string | null
+          id: string
+          images: string[]
+          name: string
+          rent: number
+          seats: number
+          sort_order: number
+          specs: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          area?: number
+          bcm?: number
+          building_slug: string
+          created_at?: string
+          floor_plan?: string | null
+          id: string
+          images?: string[]
+          name: string
+          rent?: number
+          seats?: number
+          sort_order?: number
+          specs?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          area?: number
+          bcm?: number
+          building_slug?: string
+          created_at?: string
+          floor_plan?: string | null
+          id?: string
+          images?: string[]
+          name?: string
+          rent?: number
+          seats?: number
+          sort_order?: number
+          specs?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "units_building_slug_fkey"
+            columns: ["building_slug"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +286,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
