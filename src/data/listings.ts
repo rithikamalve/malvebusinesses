@@ -1,8 +1,5 @@
-// Types + seed loader. The seed lives in listings.seed.json so the admin
-// panel can rewrite it on disk via a server function. Admin localStorage
-// edits still override this at runtime.
-
-import seedJson from "./listings.seed.json";
+// Shared types for buildings and units. Data now lives in the Cloud database;
+// this file is only the type contract used by components and the admin UI.
 
 export type UnitStatus = "available" | "rented";
 
@@ -15,7 +12,7 @@ export interface Unit {
   bcm: number;
   specs: Record<string, string>;
   status: UnitStatus;
-  images?: string[]; // urls or base64
+  images?: string[];
   floorPlan?: string;
 }
 
@@ -25,7 +22,7 @@ export interface Building {
   location: string;
   metro: string;
   contact_name: string;
-  contact_phone: string; // digits only, no +
+  contact_phone: string;
   general_contact_name?: string;
   general_contact_phone?: string;
   maps?: string;
@@ -33,5 +30,3 @@ export interface Building {
   gallery?: string[];
   units: Unit[];
 }
-
-export const SEED_BUILDINGS: Building[] = seedJson as Building[];
