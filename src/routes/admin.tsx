@@ -97,14 +97,29 @@ function AuthScreen({ onDone }: { onDone: () => void }) {
 }
 
 function NeedsAdminScreen({ userId, onLogout }: { userId: string; onLogout: () => void }) {
+  const [busy, setBusy] = useState(false);
+  async function claim() {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("claim_admin_if_unclaimed");
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    if (data === true) {
+      toast.success("You are now the admin. Reloading…");
+      setTimeout(() => window.location.reload(), 500);
+    } else {
+      toast.error("An admin already exists. Ask them to grant you access.");
+    }
+  }
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-lg">
         <h1 className="font-serif text-2xl font-bold text-primary">Almost there</h1>
         <p className="mt-2 text-sm text-muted-foreground">Your account is signed in but not yet marked as admin.</p>
+        <button disabled={busy} onClick={claim} className="mt-5 w-full rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-navy-deep disabled:opacity-60">
+          {busy ? "Working…" : "Claim admin (first user only)"}
+        </button>
         <p className="mt-4 break-all rounded-md bg-muted p-3 text-xs">Your user id: <code>{userId}</code></p>
-        <p className="mt-3 text-xs text-muted-foreground">Share this id with the developer to be granted the admin role, then refresh.</p>
-        <button onClick={onLogout} className="mt-6 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent">
+        <button onClick={onLogout} className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent">
           <LogOut className="h-4 w-4" /> Logout
         </button>
       </div>
@@ -114,9 +129,8 @@ function NeedsAdminScreen({ userId, onLogout }: { userId: string; onLogout: () =
 
 // ---------- helpers ----------
 
-function publicUrl(path: string): string {
-  return supabase.storage.from("listings").getPublicUrl(path).data.publicUrl;
-}
+// Bucket is private; use long-lived signed URLs so images render anywhere.
+const SIGNED_URL_TTL = 60 * 60 * 24 * 365 * 10; // 10 years
 
 async function uploadFile(file: File, folder: string): Promise<string> {
   const ext = file.name.split(".").pop() || "jpg";
@@ -124,7 +138,9 @@ async function uploadFile(file: File, folder: string): Promise<string> {
   const path = `${folder}/${name}`;
   const { error } = await supabase.storage.from("listings").upload(path, file, { contentType: file.type, upsert: false });
   if (error) throw error;
-  return publicUrl(path);
+  const { data, error: signErr } = await supabase.storage.from("listings").createSignedUrl(path, SIGNED_URL_TTL);
+  if (signErr || !data) throw signErr ?? new Error("Failed to sign URL");
+  return data.signedUrl;
 }
 
 // ---------- dashboard ----------
