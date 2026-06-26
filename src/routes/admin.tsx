@@ -1,82 +1,133 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Lock, Plus, Trash2, Upload, X, LogOut, RotateCcw, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Lock, Plus, Trash2, X, LogOut, ChevronDown, ChevronUp, Pencil, Database, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "@/components/Header";
-import { saveBuildings, resetToSeed, useBuildings } from "@/lib/listings-store";
+import { supabase } from "@/integrations/supabase/client";
+import { useBuildings, useInvalidateBuildings } from "@/lib/listings-store";
 import type { Building, Unit, UnitStatus } from "@/data/listings";
+import seedData from "@/data/listings.seed.json";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin · Hyderabad Offices" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Admin · Malve Businesses" }, { name: "robots", content: "noindex" }] }),
   component: AdminPage,
   ssr: false,
 });
 
-const SESSION_KEY = "admin_authed";
-
 function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [ready, setReady] = useState(false);
+
+  async function refresh() {
+    const { data } = await supabase.auth.getUser();
+    const uid = data.user?.id ?? null;
+    setUserId(uid);
+    if (uid) {
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+      setIsAdmin(!!roles?.some((r) => r.role === "admin"));
+    } else {
+      setIsAdmin(false);
+    }
+    setReady(true);
+  }
 
   useEffect(() => {
-    setAuthed(sessionStorage.getItem(SESSION_KEY) === "1");
-    setChecking(false);
+    refresh();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => refresh());
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (checking) return null;
-  if (!authed) return <LoginScreen onSuccess={() => setAuthed(true)} />;
-  return <Dashboard onLogout={() => { sessionStorage.removeItem(SESSION_KEY); setAuthed(false); }} />;
+  if (!ready) return null;
+  if (!userId) return <AuthScreen onDone={refresh} />;
+  if (!isAdmin) return <NeedsAdminScreen userId={userId} onLogout={async () => { await supabase.auth.signOut(); }} />;
+  return <Dashboard onLogout={async () => { await supabase.auth.signOut(); }} />;
 }
 
-function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
+function AuthScreen({ onDone }: { onDone: () => void }) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
-  const [err, setErr] = useState("");
-  const expected = import.meta.env.VITE_ADMIN_PASSWORD || "admin123";
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password: pwd,
+          options: { emailRedirectTo: window.location.origin + "/admin" },
+        });
+        if (error) throw error;
+        toast.success("Account created. You can now sign in.");
+        setMode("signin");
+      }
+      onDone();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (pwd === expected) {
-            sessionStorage.setItem(SESSION_KEY, "1");
-            onSuccess();
-          } else setErr("Incorrect password");
-        }}
-        className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-lg"
-      >
+      <form onSubmit={submit} className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-lg">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Lock className="h-5 w-5" />
         </div>
-        <h1 className="text-center font-serif text-2xl font-bold text-primary">Admin Access</h1>
-        <p className="mt-1 text-center text-sm text-muted-foreground">Enter the admin password to continue</p>
-        <input
-          type="password"
-          autoFocus
-          value={pwd}
-          onChange={(e) => { setPwd(e.target.value); setErr(""); }}
-          placeholder="Password"
-          className="mt-6 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
-        <button type="submit" className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">
-          Sign in
+        <h1 className="text-center font-serif text-2xl font-bold text-primary">{mode === "signin" ? "Admin Sign In" : "Create Admin Account"}</h1>
+        <p className="mt-1 text-center text-sm text-muted-foreground">Use the email + password you registered with.</p>
+        <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-6 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring" />
+        <input type="password" required placeholder="Password" value={pwd} onChange={(e) => setPwd(e.target.value)} className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring" minLength={6} />
+        <button disabled={busy} type="submit" className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-navy-deep disabled:opacity-60">
+          {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Sign up"}
         </button>
-        <p className="mt-4 text-center text-[11px] text-muted-foreground">
-          Set VITE_ADMIN_PASSWORD in env to override the default.
-        </p>
+        <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="mt-3 w-full text-center text-xs text-muted-foreground underline">
+          {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
+        </button>
       </form>
     </div>
   );
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
+function NeedsAdminScreen({ userId, onLogout }: { userId: string; onLogout: () => void }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-lg">
+        <h1 className="font-serif text-2xl font-bold text-primary">Almost there</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Your account is signed in but not yet marked as admin.</p>
+        <p className="mt-4 break-all rounded-md bg-muted p-3 text-xs">Your user id: <code>{userId}</code></p>
+        <p className="mt-3 text-xs text-muted-foreground">Share this id with the developer to be granted the admin role, then refresh.</p>
+        <button onClick={onLogout} className="mt-6 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent">
+          <LogOut className="h-4 w-4" /> Logout
+        </button>
+      </div>
+    </div>
+  );
 }
+
+// ---------- helpers ----------
+
+function publicUrl(path: string): string {
+  return supabase.storage.from("listings").getPublicUrl(path).data.publicUrl;
+}
+
+async function uploadFile(file: File, folder: string): Promise<string> {
+  const ext = file.name.split(".").pop() || "jpg";
+  const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `${folder}/${name}`;
+  const { error } = await supabase.storage.from("listings").upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  return publicUrl(path);
+}
+
+// ---------- dashboard ----------
 
 type BuildingModalState = { mode: "add" } | { mode: "edit"; slug: string };
 type UnitModalState =
@@ -85,61 +136,125 @@ type UnitModalState =
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const buildings = useBuildings();
+  const invalidate = useInvalidateBuildings();
   const [buildingModal, setBuildingModal] = useState<BuildingModalState | null>(null);
   const [unitModal, setUnitModal] = useState<UnitModalState | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [seeding, setSeeding] = useState(false);
 
-  function persist(next: Building[]) { saveBuildings(next); }
+  const showSeedButton = buildings.length === 0;
 
-  function toggleUnitStatus(slug: string, unitId: string) {
-    const next = buildings.map((b) =>
-      b.slug !== slug
-        ? b
-        : { ...b, units: b.units.map((u) => u.id === unitId ? { ...u, status: u.status === "available" ? "rented" as UnitStatus : "available" as UnitStatus } : u) }
-    );
-    persist(next);
+  async function toggleUnitStatus(slug: string, u: Unit) {
+    const next = u.status === "available" ? "rented" : "available";
+    const { error } = await supabase.from("units").update({ status: next }).eq("id", u.id);
+    if (error) return toast.error(error.message);
+    invalidate();
   }
 
-  function deleteUnit(slug: string, unitId: string) {
+  async function deleteUnit(unitId: string) {
     if (!confirm("Delete this unit?")) return;
-    persist(buildings.map((b) => b.slug !== slug ? b : { ...b, units: b.units.filter((u) => u.id !== unitId) }));
+    const { error } = await supabase.from("units").delete().eq("id", unitId);
+    if (error) return toast.error(error.message);
+    toast.success("Unit deleted");
+    invalidate();
   }
 
-  function deleteBuilding(slug: string) {
-    if (!confirm("Delete this entire building?")) return;
-    persist(buildings.filter((b) => b.slug !== slug));
+  async function deleteBuilding(slug: string) {
+    if (!confirm("Delete this entire building (and its units)?")) return;
+    const { error } = await supabase.from("buildings").delete().eq("slug", slug);
+    if (error) return toast.error(error.message);
+    toast.success("Building deleted");
+    invalidate();
   }
 
-  function saveUnit(slug: string, unit: Unit, originalId?: string) {
-    const target = originalId ?? unit.id;
-    persist(buildings.map((b) => {
-      if (b.slug !== slug) return b;
-      const exists = b.units.some((u) => u.id === target);
-      const units = exists
-        ? b.units.map((u) => u.id === target ? unit : u)
-        : [...b.units, unit];
-      return { ...b, units };
-    }));
-    setUnitModal(null);
-  }
+  async function runSeedMigration() {
+    if (!confirm("Import the legacy seed data and upload all current /listings images to Cloud storage? Run only once.")) return;
+    setSeeding(true);
+    try {
+      const seed = seedData as Building[];
+      let imageCount = 0;
+      for (const b of seed) {
+        // Upload hero
+        let heroUrl: string | null = null;
+        if (b.heroImage && b.heroImage.startsWith("/")) {
+          heroUrl = await fetchAndUpload(b.heroImage, `${b.slug}/hero`);
+          imageCount++;
+        }
+        const { error: bErr } = await supabase.from("buildings").upsert({
+          slug: b.slug,
+          name: b.name,
+          location: b.location,
+          metro: b.metro,
+          contact_name: b.contact_name,
+          contact_phone: b.contact_phone,
+          general_contact_name: b.general_contact_name ?? null,
+          general_contact_phone: b.general_contact_phone ?? null,
+          maps: b.maps ?? null,
+          hero_image: heroUrl,
+          gallery: [],
+        });
+        if (bErr) throw bErr;
 
-  function saveBuilding(b: Building, originalSlug?: string) {
-    const target = originalSlug ?? b.slug;
-    const exists = buildings.some((x) => x.slug === target);
-    if (exists) {
-      persist(buildings.map((x) => x.slug === target ? { ...x, ...b, units: x.units } : x));
-    } else {
-      persist([...buildings, b]);
+        for (const u of b.units) {
+          const newImages: string[] = [];
+          for (const img of u.images ?? []) {
+            if (img.startsWith("/")) {
+              const url = await fetchAndUpload(img, `${b.slug}/${u.id}`);
+              newImages.push(url);
+              imageCount++;
+            } else {
+              newImages.push(img);
+            }
+          }
+          let floorUrl: string | null = null;
+          if (u.floorPlan && u.floorPlan.startsWith("/")) {
+            floorUrl = await fetchAndUpload(u.floorPlan, `${b.slug}/${u.id}/floor`);
+            imageCount++;
+          } else if (u.floorPlan) {
+            floorUrl = u.floorPlan;
+          }
+          const { error: uErr } = await supabase.from("units").upsert({
+            id: u.id,
+            building_slug: b.slug,
+            name: u.name,
+            area: u.area,
+            seats: u.seats,
+            rent: u.rent,
+            bcm: u.bcm,
+            status: u.status,
+            specs: u.specs,
+            images: newImages,
+            floor_plan: floorUrl,
+          });
+          if (uErr) throw uErr;
+        }
+      }
+      toast.success(`Imported ${seed.length} buildings, uploaded ${imageCount} images.`);
+      invalidate();
+    } catch (err) {
+      console.error(err);
+      toast.error("Seed failed: " + (err as Error).message);
+    } finally {
+      setSeeding(false);
     }
-    setBuildingModal(null);
   }
 
-  const editingBuilding = buildingModal?.mode === "edit"
-    ? buildings.find((b) => b.slug === buildingModal.slug)
-    : undefined;
-  const editingUnit = unitModal?.mode === "edit"
-    ? buildings.find((b) => b.slug === unitModal.slug)?.units.find((u) => u.id === unitModal.unitId)
-    : undefined;
+  async function fetchAndUpload(srcPath: string, folder: string): Promise<string> {
+    const res = await fetch(srcPath);
+    if (!res.ok) throw new Error(`Could not fetch ${srcPath}`);
+    const blob = await res.blob();
+    const file = new File([blob], srcPath.split("/").pop() || "image.jpg", { type: blob.type || "image/jpeg" });
+    return uploadFile(file, folder);
+  }
+
+  const editingBuilding = useMemo(
+    () => (buildingModal?.mode === "edit" ? buildings.find((b) => b.slug === buildingModal.slug) : undefined),
+    [buildingModal, buildings],
+  );
+  const editingUnit = useMemo(
+    () => (unitModal?.mode === "edit" ? buildings.find((b) => b.slug === unitModal.slug)?.units.find((u) => u.id === unitModal.unitId) : undefined),
+    [unitModal, buildings],
+  );
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -154,9 +269,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <button onClick={() => setBuildingModal({ mode: "add" })} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">
               <Plus className="h-4 w-4" /> Add Building
             </button>
-            <button onClick={() => { if (confirm("Reset to seed? All admin changes lost.")) resetToSeed(); }} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-accent">
-              <RotateCcw className="h-4 w-4" /> Reset
-            </button>
+            {showSeedButton && (
+              <button onClick={runSeedMigration} disabled={seeding} className="inline-flex items-center gap-1.5 rounded-md border border-primary bg-card px-3 py-2 text-sm font-medium text-primary hover:bg-accent disabled:opacity-60">
+                <Database className="h-4 w-4" /> {seeding ? "Importing…" : "Import legacy data"}
+              </button>
+            )}
             <button onClick={onLogout} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-accent">
               <LogOut className="h-4 w-4" /> Logout
             </button>
@@ -164,9 +281,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
 
         <div className="mt-4 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
-          Edits are written to <code className="rounded bg-emerald-100 px-1">src/data/listings.seed.json</code> automatically and mirrored in this browser. In production builds (where the filesystem is read-only) only the browser copy updates.
+          All edits save to the Cloud database. Images upload to Cloud storage and are visible across every device.
         </div>
-
 
         <div className="mt-8 space-y-4">
           {buildings.map((b) => {
@@ -216,7 +332,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                             <td className="px-4 py-3">₹{u.rent.toLocaleString("en-IN")}</td>
                             <td className="px-4 py-3">
                               <button
-                                onClick={() => toggleUnitStatus(b.slug, u.id)}
+                                onClick={() => toggleUnitStatus(b.slug, u)}
                                 className={`rounded-full px-3 py-1 text-xs font-semibold ${u.status === "available" ? "bg-whatsapp text-white" : "bg-muted text-muted-foreground"}`}
                               >
                                 {u.status}
@@ -228,7 +344,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 <button onClick={() => setUnitModal({ mode: "edit", slug: b.slug, unitId: u.id })} className="rounded p-1.5 text-primary hover:bg-primary/10" title="Edit">
                                   <Pencil className="h-3.5 w-3.5" />
                                 </button>
-                                <button onClick={() => deleteUnit(b.slug, u.id)} className="rounded p-1.5 text-destructive hover:bg-destructive/10" title="Delete">
+                                <button onClick={() => deleteUnit(u.id)} className="rounded p-1.5 text-destructive hover:bg-destructive/10" title="Delete">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </div>
@@ -245,6 +361,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               </div>
             );
           })}
+          {buildings.length === 0 && (
+            <div className="rounded-lg border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
+              <Database className="mx-auto h-10 w-10 opacity-40" />
+              <p className="mt-3 text-sm">No buildings yet. Click <strong>Import legacy data</strong> to bring everything over from the JSON seed, or add buildings manually.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -252,14 +374,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         <BuildingModal
           initial={editingBuilding}
           onClose={() => setBuildingModal(null)}
-          onSave={(b) => saveBuilding(b, buildingModal.mode === "edit" ? buildingModal.slug : undefined)}
+          onSaved={() => { setBuildingModal(null); invalidate(); }}
         />
       )}
       {unitModal && (
         <UnitModal
+          buildingSlug={unitModal.slug}
           initial={editingUnit}
           onClose={() => setUnitModal(null)}
-          onSave={(u) => saveUnit(unitModal.slug, u, unitModal.mode === "edit" ? unitModal.unitId : undefined)}
+          onSaved={() => { setUnitModal(null); invalidate(); }}
         />
       )}
     </div>
@@ -291,7 +414,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 
-function BuildingModal({ initial, onClose, onSave }: { initial?: Building; onClose: () => void; onSave: (b: Building) => void }) {
+function BuildingModal({ initial, onClose, onSaved }: { initial?: Building; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     slug: initial?.slug ?? "",
@@ -301,35 +424,63 @@ function BuildingModal({ initial, onClose, onSave }: { initial?: Building; onClo
     contact_phone: initial?.contact_phone ?? "",
   });
   const [heroImage, setHeroImage] = useState<string | undefined>(initial?.heroImage);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
 
   async function handleHero(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setHeroImage(await fileToBase64(f));
+    if (!f) return;
+    setUploading(true);
+    try {
+      const slug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const url = await uploadFile(f, `${slug}/hero`);
+      setHeroImage(url);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const slug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const row = {
+      slug,
+      name: form.name,
+      location: form.location,
+      metro: form.metro,
+      contact_name: form.contact_name,
+      contact_phone: form.contact_phone,
+      hero_image: heroImage ?? null,
+    };
+    const { error } = initial
+      ? await supabase.from("buildings").update(row).eq("slug", initial.slug)
+      : await supabase.from("buildings").insert(row);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Saved");
+    onSaved();
   }
 
   return (
     <Modal title={initial ? "Edit Building" : "Add Building"} onClose={onClose}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const slug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-          onSave({ ...form, slug, units: initial?.units ?? [], heroImage });
-        }}
-        className="space-y-4"
-      >
+      <form onSubmit={submit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Name"><input required className={inputCls} value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
-          <Field label="Slug (url)"><input className={inputCls} value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto from name" /></Field>
+          <Field label="Slug (url)"><input className={inputCls} value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto from name" disabled={!!initial} /></Field>
         </div>
         <Field label="Location"><input required className={inputCls} value={form.location} onChange={(e) => set("location", e.target.value)} /></Field>
         <Field label="Metro Station"><input className={inputCls} value={form.metro} onChange={(e) => set("metro", e.target.value)} /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Contact Name"><input required className={inputCls} value={form.contact_name} onChange={(e) => set("contact_name", e.target.value)} /></Field>
-          <Field label="Contact Phone (digits, e.g. 91XXXXXXXXXX)"><input required className={inputCls} value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value.replace(/\D/g, ""))} /></Field>
+          <Field label="Contact Phone (digits)"><input required className={inputCls} value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value.replace(/\D/g, ""))} /></Field>
         </div>
         <Field label="Hero Photo">
           <input type="file" accept="image/*" onChange={handleHero} className="text-sm" />
+          {uploading && <p className="mt-1 text-xs text-muted-foreground">Uploading…</p>}
           {heroImage && (
             <div className="relative mt-2 inline-block">
               <img src={heroImage} alt="" className="h-32 rounded-md object-cover" />
@@ -341,15 +492,16 @@ function BuildingModal({ initial, onClose, onSave }: { initial?: Building; onClo
         </Field>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm">Cancel</button>
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">{initial ? "Save Changes" : "Save Building"}</button>
+          <button disabled={saving || uploading} type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep disabled:opacity-60">{saving ? "Saving…" : initial ? "Save Changes" : "Save Building"}</button>
         </div>
       </form>
     </Modal>
   );
 }
 
-function UnitModal({ initial, onClose, onSave }: { initial?: Unit; onClose: () => void; onSave: (u: Unit) => void }) {
+function UnitModal({ buildingSlug, initial, onClose, onSaved }: { buildingSlug: string; initial?: Unit; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
+    id: initial?.id ?? "",
     name: initial?.name ?? "",
     area: initial ? String(initial.area) : "",
     seats: initial ? String(initial.seats) : "",
@@ -361,105 +513,131 @@ function UnitModal({ initial, onClose, onSave }: { initial?: Unit; onClose: () =
   const [specs, setSpecs] = useState<{ k: string; v: string }[]>(initialSpecs.length ? initialSpecs : [{ k: "", v: "" }]);
   const [images, setImages] = useState<string[]>(initial?.images ?? []);
   const [floorPlan, setFloorPlan] = useState<string | undefined>(initial?.floorPlan);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
+
+  const folder = `${buildingSlug}/${form.id || "new"}`;
 
   async function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    const b64 = await Promise.all(files.map(fileToBase64));
-    setImages([...images, ...b64]);
-    e.target.value = "";
+    if (files.length === 0) return;
+    setUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const f of files) urls.push(await uploadFile(f, folder));
+      setImages([...images, ...urls]);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
   }
 
-  async function handleFloorPlan(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFloor(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setFloorPlan(await fileToBase64(f));
+    if (!f) return;
+    setUploading(true);
+    try {
+      setFloorPlan(await uploadFile(f, `${folder}/floor`));
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const id = form.id || `${buildingSlug}-${Date.now().toString(36)}`;
+    const specsObj: Record<string, string> = {};
+    for (const s of specs) if (s.k.trim()) specsObj[s.k.trim()] = s.v;
+    const row = {
+      id,
+      building_slug: buildingSlug,
+      name: form.name,
+      area: Number(form.area) || 0,
+      seats: Number(form.seats) || 0,
+      rent: Number(form.rent) || 0,
+      bcm: Number(form.bcm) || 0,
+      status,
+      specs: specsObj,
+      images,
+      floor_plan: floorPlan ?? null,
+    };
+    const { error } = initial
+      ? await supabase.from("units").update(row).eq("id", initial.id)
+      : await supabase.from("units").insert(row);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Saved");
+    onSaved();
   }
 
   return (
     <Modal title={initial ? "Edit Unit" : "Add Unit"} onClose={onClose}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const specsObj: Record<string, string> = {};
-          for (const { k, v } of specs) if (k.trim()) specsObj[k.trim()] = v;
-          onSave({
-            id: initial?.id ?? `unit-${Date.now()}`,
-            name: form.name,
-            area: Number(form.area) || 0,
-            seats: Number(form.seats) || 0,
-            rent: Number(form.rent) || 0,
-            bcm: Number(form.bcm) || 0,
-            specs: specsObj,
-            status,
-            images,
-            floorPlan,
-          });
-        }}
-        className="space-y-4"
-      >
-        <Field label="Unit Name"><input required className={inputCls} value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Unit ID"><input className={inputCls} value={form.id} onChange={(e) => set("id", e.target.value)} placeholder="auto" disabled={!!initial} /></Field>
+          <Field label="Name"><input required className={inputCls} value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
+        </div>
         <div className="grid gap-4 sm:grid-cols-4">
           <Field label="Area (sft)"><input required type="number" className={inputCls} value={form.area} onChange={(e) => set("area", e.target.value)} /></Field>
           <Field label="Seats"><input required type="number" className={inputCls} value={form.seats} onChange={(e) => set("seats", e.target.value)} /></Field>
           <Field label="Rent (₹)"><input required type="number" className={inputCls} value={form.rent} onChange={(e) => set("rent", e.target.value)} /></Field>
-          <Field label="BCM (₹)"><input required type="number" className={inputCls} value={form.bcm} onChange={(e) => set("bcm", e.target.value)} /></Field>
+          <Field label="BCM (₹)"><input type="number" className={inputCls} value={form.bcm} onChange={(e) => set("bcm", e.target.value)} /></Field>
         </div>
         <Field label="Status">
-          <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value as UnitStatus)}>
+          <select value={status} onChange={(e) => setStatus(e.target.value as UnitStatus)} className={inputCls}>
             <option value="available">Available</option>
             <option value="rented">Rented</option>
           </select>
         </Field>
+
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Specs</span>
-          <div className="mt-2 space-y-2">
-            {specs.map((row, i) => (
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Specifications</span>
+          <div className="mt-1 space-y-2">
+            {specs.map((s, i) => (
               <div key={i} className="flex gap-2">
-                <input placeholder="Key" className={inputCls} value={row.k} onChange={(e) => setSpecs(specs.map((r, j) => j === i ? { ...r, k: e.target.value } : r))} />
-                <input placeholder="Value" className={inputCls} value={row.v} onChange={(e) => setSpecs(specs.map((r, j) => j === i ? { ...r, v: e.target.value } : r))} />
-                <button type="button" onClick={() => setSpecs(specs.filter((_, j) => j !== i))} className="rounded-md border border-border px-2 text-muted-foreground hover:bg-accent">
-                  <X className="h-4 w-4" />
-                </button>
+                <input className={inputCls} placeholder="Label" value={s.k} onChange={(e) => setSpecs(specs.map((x, j) => j === i ? { ...x, k: e.target.value } : x))} />
+                <input className={inputCls} placeholder="Value" value={s.v} onChange={(e) => setSpecs(specs.map((x, j) => j === i ? { ...x, v: e.target.value } : x))} />
+                <button type="button" onClick={() => setSpecs(specs.filter((_, j) => j !== i))} className="rounded p-2 text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></button>
               </div>
             ))}
-            <button type="button" onClick={() => setSpecs([...specs, { k: "", v: "" }])} className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-              <Plus className="h-3 w-3" /> Add spec
-            </button>
+            <button type="button" onClick={() => setSpecs([...specs, { k: "", v: "" }])} className="text-xs font-medium text-primary underline">+ Add spec</button>
           </div>
         </div>
-        <Field label="Photos (multiple — carousel order = upload order)">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-muted/50 px-4 py-3 text-sm hover:bg-muted">
-            <Upload className="h-4 w-4" /> Upload images
-            <input type="file" accept="image/*" multiple onChange={handleImages} className="hidden" />
-          </label>
-          {images.length > 0 && (
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {images.map((src, i) => (
-                <div key={i} className="relative aspect-square overflow-hidden rounded-md border border-border">
-                  <img src={src} alt="" className="h-full w-full object-cover" />
-                  <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">{i + 1}</span>
-                  <button type="button" onClick={() => setImages(images.filter((_, j) => j !== i))} className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+
+        <Field label="Photos">
+          <input type="file" accept="image/*" multiple onChange={handleImages} className="text-sm" />
+          {uploading && <p className="mt-1 text-xs text-muted-foreground">Uploading…</p>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {images.map((src, i) => (
+              <div key={src} className="relative">
+                <img src={src} alt="" className="h-20 w-28 rounded object-cover" />
+                <button type="button" onClick={() => setImages(images.filter((_, j) => j !== i))} className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"><X className="h-3 w-3" /></button>
+              </div>
+            ))}
+          </div>
         </Field>
-        <Field label="Floor Plan (single image)">
-          <input type="file" accept="image/*" onChange={handleFloorPlan} className="text-sm" />
+
+        <Field label="Floor Plan (optional)">
+          <input type="file" accept="image/*" onChange={handleFloor} className="text-sm" />
           {floorPlan && (
             <div className="relative mt-2 inline-block">
-              <img src={floorPlan} alt="" className="h-32 rounded-md border border-border object-contain" />
-              <button type="button" onClick={() => setFloorPlan(undefined)} className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white">
-                <X className="h-3 w-3" />
-              </button>
+              <img src={floorPlan} alt="" className="h-28 rounded object-contain" />
+              <button type="button" onClick={() => setFloorPlan(undefined)} className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white"><X className="h-3 w-3" /></button>
             </div>
           )}
         </Field>
+
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm">Cancel</button>
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">{initial ? "Save Changes" : "Save Unit"}</button>
+          <button disabled={saving || uploading} type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep disabled:opacity-60">
+            <span className="inline-flex items-center gap-1"><ImageIcon className="h-3.5 w-3.5" /> {saving ? "Saving…" : initial ? "Save Changes" : "Save Unit"}</span>
+          </button>
         </div>
       </form>
     </Modal>
