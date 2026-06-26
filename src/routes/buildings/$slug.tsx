@@ -1,48 +1,37 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, MapPin, Train, Phone, MessageCircle, ExternalLink, Building2 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { UnitCard } from "@/components/UnitCard";
 import { Lightbox } from "@/components/Lightbox";
-import { useBuilding } from "@/lib/listings-store";
-import { SEED_BUILDINGS } from "@/data/listings";
+import { useBuilding, useBuildings } from "@/lib/listings-store";
 
 export const Route = createFileRoute("/buildings/$slug")({
   head: ({ params }) => {
-    const b = SEED_BUILDINGS.find((x) => x.slug === params.slug);
-    const title = b ? `${b.name} — Office Space in ${b.location.split(",")[0]}` : "Building";
+    const title = `Office Space · ${params.slug.replace(/-/g, " ")}`;
     return {
       meta: [
         { title },
-        { name: "description", content: b ? `${b.name} at ${b.location}. ${b.units.length} units. Metro: ${b.metro}.` : "Office building" },
         { property: "og:title", content: title },
       ],
     };
   },
   component: BuildingPage,
-  notFoundComponent: () => (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h1 className="font-serif text-3xl text-primary">Building not found</h1>
-        <Link to="/" className="mt-4 inline-block text-sm text-primary underline">Back to home</Link>
-      </div>
-    </div>
-  ),
-  errorComponent: ({ error }) => <div className="p-8">{error.message}</div>,
+  ssr: false,
 });
 
 function BuildingPage() {
   const { slug } = Route.useParams();
+  const all = useBuildings();
   const building = useBuilding(slug);
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
   const [lightbox, setLightbox] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
 
+  if (all.length === 0) {
+    return <div className="min-h-screen bg-background"><Header /><div className="mx-auto max-w-7xl px-4 py-20 text-muted-foreground">Loading…</div></div>;
+  }
+
   if (!building) {
-    if (!hydrated) {
-      return <div className="min-h-screen bg-background"><Header /><div className="mx-auto max-w-7xl px-4 py-20 text-muted-foreground">Loading…</div></div>;
-    }
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -61,7 +50,6 @@ function BuildingPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero */}
       <section className="relative isolate overflow-hidden bg-primary text-white">
         {heroSrc ? (
           <>
@@ -89,7 +77,6 @@ function BuildingPage() {
         </div>
       </section>
 
-      {/* Gallery */}
       {gallery.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -106,7 +93,6 @@ function BuildingPage() {
         </section>
       )}
 
-      {/* Units */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
         <h2 className="mb-6 font-serif text-2xl font-bold text-primary sm:text-3xl">Available Units</h2>
         {building.units.length === 0 ? (
@@ -123,7 +109,6 @@ function BuildingPage() {
         )}
       </section>
 
-      {/* Schedule a Visit */}
       <section className="mx-auto mb-20 max-w-7xl px-4 sm:px-6">
         <div className="rounded-2xl border border-border bg-card p-8 shadow-sm sm:p-12">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">

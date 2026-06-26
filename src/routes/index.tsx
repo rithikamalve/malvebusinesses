@@ -15,6 +15,7 @@ export const Route = createFileRoute("/")({
     ],
   }),
   component: HomePage,
+  ssr: false,
 });
 
 const trust = [
