@@ -44,15 +44,75 @@ function AdminPage() {
   return <Dashboard onLogout={async () => { await supabase.auth.signOut(); }} />;
 }
 
+type AuthErr = { title: string; detail: string; hint?: string };
+
+function explainAuthError(err: unknown, mode: "signin" | "signup"): AuthErr {
+  const e = err as { message?: string; status?: number; code?: string } | null;
+  const msg = (e?.message ?? "").toLowerCase();
+  const code = e?.code ?? "";
+  const status = e?.status ?? 0;
+
+  if (msg.includes("invalid login credentials") || code === "invalid_credentials") {
+    return {
+      title: "Wrong email or password",
+      detail: "We couldn't find an account matching those credentials.",
+      hint: "Double-check the email. If this is your first time, switch to Sign up below to create the account.",
+    };
+  }
+  if (msg.includes("email not confirmed") || code === "email_not_confirmed") {
+    return {
+      title: "Email not confirmed",
+      detail: "Your account exists but the email hasn't been verified yet.",
+      hint: "Check your inbox for the confirmation link, or ask the site owner to enable auto-confirm.",
+    };
+  }
+  if (msg.includes("user already registered") || code === "user_already_exists") {
+    return {
+      title: "Account already exists",
+      detail: "An account with this email is already registered.",
+      hint: "Switch to Sign in and use your existing password (or reset it if forgotten).",
+    };
+  }
+  if (msg.includes("password") && (msg.includes("short") || msg.includes("6"))) {
+    return { title: "Password too short", detail: "Passwords must be at least 6 characters.", hint: "Pick a longer password." };
+  }
+  if (msg.includes("pwned") || code === "weak_password") {
+    return {
+      title: "Password is too weak / leaked",
+      detail: "This password appears in known data breaches and is blocked for security.",
+      hint: "Use a unique password you haven't used elsewhere — ideally 12+ characters with a mix of letters, numbers, and symbols.",
+    };
+  }
+  if (msg.includes("rate") || status === 429) {
+    return { title: "Too many attempts", detail: "Sign-in is temporarily rate-limited.", hint: "Wait ~30 seconds and try again." };
+  }
+  if (msg.includes("invalid") && msg.includes("email")) {
+    return { title: "Invalid email format", detail: "That doesn't look like a valid email address.", hint: "Use the form name@example.com." };
+  }
+  if (msg.includes("signup") && msg.includes("disabled")) {
+    return { title: "Sign-ups disabled", detail: "New account creation is currently turned off.", hint: "Ask the site owner to enable signups in auth settings." };
+  }
+  if (msg.includes("failed to fetch") || msg.includes("network")) {
+    return { title: "Network error", detail: "Could not reach the authentication server.", hint: "Check your internet connection and try again." };
+  }
+  return {
+    title: mode === "signin" ? "Sign-in failed" : "Sign-up failed",
+    detail: e?.message ?? "Unknown error.",
+    hint: "If this keeps happening, copy the message above and contact support.",
+  };
+}
+
 function AuthScreen({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<AuthErr | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setErr(null);
     try {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
@@ -68,8 +128,10 @@ function AuthScreen({ onDone }: { onDone: () => void }) {
         setMode("signin");
       }
       onDone();
-    } catch (err) {
-      toast.error((err as Error).message);
+    } catch (error) {
+      const parsed = explainAuthError(error, mode);
+      setErr(parsed);
+      toast.error(parsed.title);
     } finally {
       setBusy(false);
     }
@@ -82,19 +144,31 @@ function AuthScreen({ onDone }: { onDone: () => void }) {
           <Lock className="h-5 w-5" />
         </div>
         <h1 className="text-center font-serif text-2xl font-bold text-primary">{mode === "signin" ? "Admin Sign In" : "Create Admin Account"}</h1>
-        <p className="mt-1 text-center text-sm text-muted-foreground">Use the email + password you registered with.</p>
-        <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-6 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring" />
+        <p className="mt-1 text-center text-sm text-muted-foreground">
+          {mode === "signin" ? "Use the email + password you registered with." : "Pick any email and a password (min 6 chars)."}
+        </p>
+
+        {err && (
+          <div role="alert" className="mt-5 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-left">
+            <p className="text-sm font-semibold text-destructive">{err.title}</p>
+            <p className="mt-1 text-xs text-destructive/90">{err.detail}</p>
+            {err.hint && <p className="mt-2 text-xs text-muted-foreground"><span className="font-semibold">How to fix:</span> {err.hint}</p>}
+          </div>
+        )}
+
+        <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-5 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring" />
         <input type="password" required placeholder="Password" value={pwd} onChange={(e) => setPwd(e.target.value)} className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring" minLength={6} />
         <button disabled={busy} type="submit" className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-navy-deep disabled:opacity-60">
           {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Sign up"}
         </button>
-        <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="mt-3 w-full text-center text-xs text-muted-foreground underline">
+        <button type="button" onClick={() => { setErr(null); setMode(mode === "signin" ? "signup" : "signin"); }} className="mt-3 w-full text-center text-xs text-muted-foreground underline">
           {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
         </button>
       </form>
     </div>
   );
 }
+
 
 function NeedsAdminScreen({ userId, onLogout }: { userId: string; onLogout: () => void }) {
   const [busy, setBusy] = useState(false);
