@@ -100,14 +100,19 @@ function NeedsAdminScreen({ userId, onLogout }: { userId: string; onLogout: () =
   const [busy, setBusy] = useState(false);
   async function claim() {
     setBusy(true);
-    const { data, error } = await supabase.rpc("claim_admin_if_unclaimed");
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (data === true) {
-      toast.success("You are now the admin. Reloading…");
-      setTimeout(() => window.location.reload(), 500);
-    } else {
-      toast.error("An admin already exists. Ask them to grant you access.");
+    try {
+      const { claimAdminIfUnclaimed } = await import("@/lib/admin.functions");
+      const res = await claimAdminIfUnclaimed();
+      if (res.claimed) {
+        toast.success("You are now the admin. Reloading…");
+        setTimeout(() => window.location.reload(), 500);
+      } else {
+        toast.error("An admin already exists. Ask them to grant you access.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to claim admin");
+    } finally {
+      setBusy(false);
     }
   }
   return (
