@@ -38,7 +38,11 @@ function AdminPage() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (!ready) return null;
+  if (!ready) return (
+    <div className="flex min-h-screen items-center justify-center bg-secondary text-sm text-muted-foreground">
+      Loading admin…
+    </div>
+  );
   if (!userId) return <AuthScreen onDone={refresh} />;
   if (!isAdmin) return <NeedsAdminScreen userId={userId} onLogout={async () => { await supabase.auth.signOut(); }} />;
   return <Dashboard onLogout={async () => { await supabase.auth.signOut(); }} />;
@@ -236,8 +240,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [unitModal, setUnitModal] = useState<UnitModalState | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [seeding, setSeeding] = useState(false);
-
-  const showSeedButton = buildings.length === 0;
+  const [seedStatus, setSeedStatus] = useState<string>("");
 
   async function toggleUnitStatus(slug: string, u: Unit) {
     const next = u.status === "available" ? "rented" : "available";
@@ -263,72 +266,101 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   }
 
   async function runSeedMigration() {
-    if (!confirm("Import the legacy seed data and upload all current /listings images to Cloud storage? Run only once.")) return;
+    if (!confirm("Import legacy data? Buildings/units already present will be skipped (safe to re-run).")) return;
     setSeeding(true);
+    setSeedStatus("Starting…");
     try {
       const seed = seedData as Building[];
-      let imageCount = 0;
-      for (const b of seed) {
-        // Upload hero
-        let heroUrl: string | null = null;
-        if (b.heroImage && b.heroImage.startsWith("/")) {
-          heroUrl = await fetchAndUpload(b.heroImage, `${b.slug}/hero`);
-          imageCount++;
-        }
-        const { error: bErr } = await supabase.from("buildings").upsert({
-          slug: b.slug,
-          name: b.name,
-          location: b.location,
-          metro: b.metro,
-          contact_name: b.contact_name,
-          contact_phone: b.contact_phone,
-          general_contact_name: b.general_contact_name ?? null,
-          general_contact_phone: b.general_contact_phone ?? null,
-          maps: b.maps ?? null,
-          hero_image: heroUrl,
-          gallery: [],
-        });
-        if (bErr) throw bErr;
+      // Snapshot existing rows so we can skip them.
+      const { data: existingB } = await supabase.from("buildings").select("slug");
+      const { data: existingU } = await supabase.from("units").select("id");
+      const haveB = new Set((existingB ?? []).map((r) => r.slug));
+      const haveU = new Set((existingU ?? []).map((r) => r.id));
 
-        for (const u of b.units) {
-          const newImages: string[] = [];
-          for (const img of u.images ?? []) {
-            if (img.startsWith("/")) {
-              const url = await fetchAndUpload(img, `${b.slug}/${u.id}`);
-              newImages.push(url);
+      let imageCount = 0;
+      let bCount = 0;
+      let uCount = 0;
+      const errors: string[] = [];
+
+      for (const b of seed) {
+        try {
+          setSeedStatus(`Building: ${b.name}`);
+          if (!haveB.has(b.slug)) {
+            let heroUrl: string | null = null;
+            if (b.heroImage && b.heroImage.startsWith("/")) {
+              heroUrl = await fetchAndUpload(b.heroImage, `${b.slug}/hero`);
               imageCount++;
-            } else {
-              newImages.push(img);
             }
+            const { error: bErr } = await supabase.from("buildings").upsert({
+              slug: b.slug,
+              name: b.name,
+              location: b.location,
+              metro: b.metro,
+              contact_name: b.contact_name,
+              contact_phone: b.contact_phone,
+              general_contact_name: b.general_contact_name ?? null,
+              general_contact_phone: b.general_contact_phone ?? null,
+              maps: b.maps ?? null,
+              hero_image: heroUrl,
+              gallery: [],
+            });
+            if (bErr) throw bErr;
+            bCount++;
           }
-          let floorUrl: string | null = null;
-          if (u.floorPlan && u.floorPlan.startsWith("/")) {
-            floorUrl = await fetchAndUpload(u.floorPlan, `${b.slug}/${u.id}/floor`);
-            imageCount++;
-          } else if (u.floorPlan) {
-            floorUrl = u.floorPlan;
+
+          for (const u of b.units) {
+            if (haveU.has(u.id)) continue;
+            setSeedStatus(`Unit: ${b.name} → ${u.name} (${(u.images ?? []).length} images)`);
+            const newImages: string[] = [];
+            for (const img of u.images ?? []) {
+              if (img.startsWith("/")) {
+                const url = await fetchAndUpload(img, `${b.slug}/${u.id}`);
+                newImages.push(url);
+                imageCount++;
+              } else {
+                newImages.push(img);
+              }
+            }
+            let floorUrl: string | null = null;
+            if (u.floorPlan && u.floorPlan.startsWith("/")) {
+              floorUrl = await fetchAndUpload(u.floorPlan, `${b.slug}/${u.id}/floor`);
+              imageCount++;
+            } else if (u.floorPlan) {
+              floorUrl = u.floorPlan;
+            }
+            const { error: uErr } = await supabase.from("units").upsert({
+              id: u.id,
+              building_slug: b.slug,
+              name: u.name,
+              area: u.area,
+              seats: u.seats,
+              rent: u.rent,
+              bcm: u.bcm,
+              status: u.status,
+              specs: u.specs,
+              images: newImages,
+              floor_plan: floorUrl,
+            });
+            if (uErr) throw uErr;
+            uCount++;
           }
-          const { error: uErr } = await supabase.from("units").upsert({
-            id: u.id,
-            building_slug: b.slug,
-            name: u.name,
-            area: u.area,
-            seats: u.seats,
-            rent: u.rent,
-            bcm: u.bcm,
-            status: u.status,
-            specs: u.specs,
-            images: newImages,
-            floor_plan: floorUrl,
-          });
-          if (uErr) throw uErr;
+        } catch (e) {
+          const msg = `${b.name}: ${(e as Error).message}`;
+          console.error(msg, e);
+          errors.push(msg);
+          toast.error(msg);
         }
       }
-      toast.success(`Imported ${seed.length} buildings, uploaded ${imageCount} images.`);
+      setSeedStatus("");
+      if (errors.length === 0) {
+        toast.success(`Done. Added ${bCount} buildings, ${uCount} units, ${imageCount} images.`);
+      } else {
+        toast.error(`Finished with ${errors.length} error(s). ${bCount} buildings, ${uCount} units, ${imageCount} images imported.`);
+      }
       invalidate();
     } catch (err) {
       console.error(err);
-      toast.error("Seed failed: " + (err as Error).message);
+      toast.error("Import failed: " + (err as Error).message);
     } finally {
       setSeeding(false);
     }
@@ -364,11 +396,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <button onClick={() => setBuildingModal({ mode: "add" })} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-navy-deep">
               <Plus className="h-4 w-4" /> Add Building
             </button>
-            {showSeedButton && (
-              <button onClick={runSeedMigration} disabled={seeding} className="inline-flex items-center gap-1.5 rounded-md border border-primary bg-card px-3 py-2 text-sm font-medium text-primary hover:bg-accent disabled:opacity-60">
-                <Database className="h-4 w-4" /> {seeding ? "Importing…" : "Import legacy data"}
-              </button>
-            )}
+            <button onClick={runSeedMigration} disabled={seeding} className="inline-flex items-center gap-1.5 rounded-md border border-primary bg-card px-3 py-2 text-sm font-medium text-primary hover:bg-accent disabled:opacity-60">
+              <Database className="h-4 w-4" /> {seeding ? "Importing…" : "Import legacy data"}
+            </button>
             <button onClick={onLogout} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-accent">
               <LogOut className="h-4 w-4" /> Logout
             </button>
