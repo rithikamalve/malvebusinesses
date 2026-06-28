@@ -408,6 +408,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         <div className="mt-4 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
           All edits save to the Cloud database. Images upload to Cloud storage and are visible across every device.
         </div>
+        {seeding && seedStatus && (
+          <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-primary">
+            Importing… {seedStatus}
+          </div>
+        )}
 
         <div className="mt-8 space-y-4">
           {buildings.map((b) => {
