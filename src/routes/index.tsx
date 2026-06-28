@@ -111,11 +111,11 @@ function HomePage() {
               <p className="mt-2 text-white/80">Talk to our team. We'll arrange a walkthrough at a time that suits you.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <a href="tel:+919398850260" className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-white/90">
-                <Phone className="h-4 w-4" /> +91 93988 50260
+              <a href="tel:+918179347107" className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-white/90">
+                <Phone className="h-4 w-4" /> Call Arun
               </a>
               <a
-                href="https://wa.me/919398850260?text=Hi%2C%20I%27d%20like%20to%20schedule%20a%20visit."
+                href="https://wa.me/918179347107?text=Hi%2C%20I%27d%20like%20to%20schedule%20a%20visit."
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 rounded-md bg-whatsapp px-5 py-3 text-sm font-semibold text-white hover:bg-whatsapp-hover"
