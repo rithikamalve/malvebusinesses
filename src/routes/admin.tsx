@@ -663,7 +663,7 @@ function UnitModal({ buildingSlug, initial, onClose, onSaved }: { buildingSlug: 
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
 
-  const folder = `${buildingSlug}/${form.id || "new"}`;
+  const folder = `${buildingSlug}/${sanitizeSlug(form.id) || "new"}`;
 
   async function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -673,8 +673,9 @@ function UnitModal({ buildingSlug, initial, onClose, onSaved }: { buildingSlug: 
       const urls: string[] = [];
       for (const f of files) urls.push(await uploadFile(f, folder));
       setImages([...images, ...urls]);
+      toast.success(`Uploaded ${urls.length} photo${urls.length === 1 ? "" : "s"}`);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(`Upload failed: ${(err as Error).message}`);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -687,10 +688,12 @@ function UnitModal({ buildingSlug, initial, onClose, onSaved }: { buildingSlug: 
     setUploading(true);
     try {
       setFloorPlan(await uploadFile(f, `${folder}/floor`));
+      toast.success("Floor plan uploaded");
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(`Upload failed: ${(err as Error).message}`);
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   }
 
