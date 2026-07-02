@@ -544,6 +544,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 
+function sanitizeSlug(s: string): string {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+}
+
 function BuildingModal({ initial, onClose, onSaved }: { initial?: Building; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     name: initial?.name ?? "",
@@ -552,6 +556,7 @@ function BuildingModal({ initial, onClose, onSaved }: { initial?: Building; onCl
     metro: initial?.metro ?? "",
     contact_name: initial?.contact_name ?? "",
     contact_phone: initial?.contact_phone ?? "",
+    maps: initial?.maps ?? "",
   });
   const [heroImage, setHeroImage] = useState<string | undefined>(initial?.heroImage);
   const [uploading, setUploading] = useState(false);
@@ -561,22 +566,30 @@ function BuildingModal({ initial, onClose, onSaved }: { initial?: Building; onCl
   async function handleHero(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    const slug = initial?.slug || sanitizeSlug(form.slug || form.name);
+    if (!slug) {
+      toast.error("Enter a building name first, then upload the hero photo.");
+      e.target.value = "";
+      return;
+    }
     setUploading(true);
     try {
-      const slug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       const url = await uploadFile(f, `${slug}/hero`);
       setHeroImage(url);
+      toast.success("Hero photo uploaded");
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(`Upload failed: ${(err as Error).message}`);
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const slug = initial?.slug || sanitizeSlug(form.slug || form.name);
+    if (!slug) return toast.error("Name or slug is required");
     setSaving(true);
-    const slug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const row = {
       slug,
       name: form.name,
@@ -584,6 +597,7 @@ function BuildingModal({ initial, onClose, onSaved }: { initial?: Building; onCl
       metro: form.metro,
       contact_name: form.contact_name,
       contact_phone: form.contact_phone,
+      maps: form.maps.trim() || null,
       hero_image: heroImage ?? null,
     };
     const { error } = initial
@@ -600,14 +614,16 @@ function BuildingModal({ initial, onClose, onSaved }: { initial?: Building; onCl
       <form onSubmit={submit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Name"><input required className={inputCls} value={form.name} onChange={(e) => set("name", e.target.value)} /></Field>
-          <Field label="Slug (url)"><input className={inputCls} value={form.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto from name" disabled={!!initial} /></Field>
+          <Field label="Slug (short id, letters + dashes)"><input className={inputCls} value={form.slug} onChange={(e) => set("slug", sanitizeSlug(e.target.value))} placeholder="auto from name" disabled={!!initial} /></Field>
         </div>
         <Field label="Location"><input required className={inputCls} value={form.location} onChange={(e) => set("location", e.target.value)} /></Field>
         <Field label="Metro Station"><input className={inputCls} value={form.metro} onChange={(e) => set("metro", e.target.value)} /></Field>
+        <Field label="Google Maps URL (optional)"><input className={inputCls} value={form.maps} onChange={(e) => set("maps", e.target.value)} placeholder="https://maps.app.goo.gl/..." /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Contact Name"><input required className={inputCls} value={form.contact_name} onChange={(e) => set("contact_name", e.target.value)} /></Field>
           <Field label="Contact Phone (digits)"><input required className={inputCls} value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value.replace(/\D/g, ""))} /></Field>
         </div>
+
         <Field label="Hero Photo">
           <input type="file" accept="image/*" onChange={handleHero} className="text-sm" />
           {uploading && <p className="mt-1 text-xs text-muted-foreground">Uploading…</p>}
@@ -647,7 +663,7 @@ function UnitModal({ buildingSlug, initial, onClose, onSaved }: { buildingSlug: 
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
 
-  const folder = `${buildingSlug}/${form.id || "new"}`;
+  const folder = `${buildingSlug}/${sanitizeSlug(form.id) || "new"}`;
 
   async function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -657,8 +673,9 @@ function UnitModal({ buildingSlug, initial, onClose, onSaved }: { buildingSlug: 
       const urls: string[] = [];
       for (const f of files) urls.push(await uploadFile(f, folder));
       setImages([...images, ...urls]);
+      toast.success(`Uploaded ${urls.length} photo${urls.length === 1 ? "" : "s"}`);
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(`Upload failed: ${(err as Error).message}`);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -671,10 +688,12 @@ function UnitModal({ buildingSlug, initial, onClose, onSaved }: { buildingSlug: 
     setUploading(true);
     try {
       setFloorPlan(await uploadFile(f, `${folder}/floor`));
+      toast.success("Floor plan uploaded");
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(`Upload failed: ${(err as Error).message}`);
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   }
 
